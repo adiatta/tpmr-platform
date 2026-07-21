@@ -4,6 +4,7 @@ RUN corepack enable && corepack prepare pnpm@11.0.0 --activate
 FROM base AS builder
 WORKDIR /repo
 COPY . .
+ENV CI=true
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @tpmr/dashboard build
 

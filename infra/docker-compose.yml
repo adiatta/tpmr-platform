@@ -22,10 +22,11 @@ services:
     depends_on: [postgres, redis]
     volumes: ["../services/backend:/app"]
 
+
   dashboard:
     build:
-      context: ../apps/dashboard
-      dockerfile: ../../infra/docker/dashboard.Dockerfile
+      context: ..
+      dockerfile: infra/docker/dashboard.Dockerfile
     env_file: .env
     ports: ["3000:3000"]
     depends_on: [backend]
