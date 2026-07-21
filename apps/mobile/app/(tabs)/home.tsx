@@ -74,6 +74,13 @@ export default function HomeScreen() {
       >
         Voir toutes mes courses →
       </Text>
+
+      <Text
+        className="text-sm font-semibold text-primary"
+        onPress={() => router.push("/calendar")}
+      >
+        Voir mon calendrier →
+      </Text>
     </ScrollView>
   );
 }

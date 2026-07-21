@@ -1,12 +1,14 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
+  content: [
+    "./app/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}",
+    "../../packages/**/*.{js,jsx,ts,tsx}"
+  ],
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
       colors: {
-        // Même palette que le dashboard web (module 2), pour une identité cohérente
-        // entre l'app chauffeur et le back-office.
         background: "#F4F8F8",
         surface: "#FFFFFF",
         border: "#DCE6E5",

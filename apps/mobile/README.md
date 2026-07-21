@@ -62,3 +62,13 @@ Profil (fonctionnel), Paramètres, Notifications.
 
 Notifications push, messagerie temps réel (WebSocket), calendrier chauffeur,
 signalement d'incident (bouton déjà en place, action à brancher).
+
+## Tous les écrans sont livrés (14/14)
+
+Splash, Connexion, Mot de passe oublié, Accueil, Mes courses, Détail course
+(navigation Google Maps/Waze/Plans intégrée), Carte GPS, Historique,
+Calendrier (`/calendar`, accessible depuis Accueil), Messagerie, Notifications,
+Profil, Paramètres. Historique/Messagerie/Notifications/Paramètres restent
+volontairement simples (données de démonstration ou fonctionnalité minimale) en
+attendant les modules backend correspondants (messagerie temps réel,
+notifications push).
