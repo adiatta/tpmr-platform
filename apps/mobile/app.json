@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "TPMR Chauffeur",
+    "slug": "tpmr-chauffeur",
+    "scheme": "tpmr",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F5C5C"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "fr.tpmr.chauffeur",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "TPMR utilise votre position pour partager votre trajet en temps réel avec le dispatch.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "TPMR suit votre position pendant une course pour informer le dispatch et calculer l'heure d'arrivée."
+      }
+    },
+    "android": {
+      "package": "fr.tpmr.chauffeur",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F5C5C"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "TPMR suit votre position pendant une course pour informer le dispatch."
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:8000/api/v1"
+    }
+  }
+}

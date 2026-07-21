@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Tailwind v4 : configuration "CSS-first" — plus de tailwind.config.ts pour les
+   tokens de thème. Chaque --color-* ci-dessous génère automatiquement les
+   utilitaires correspondants (bg-primary, text-primary-foreground, etc.). */
+@theme {
+  --color-background: hsl(190 25% 97%);
+  --color-surface: hsl(0 0% 100%);
+  --color-border: hsl(190 15% 88%);
+  --color-foreground: hsl(180 22% 12%);
+  --color-muted: hsl(180 8% 42%);
+
+  --color-primary: hsl(183 60% 22%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-primary-soft: hsl(183 45% 92%);
+
+  --color-amber: hsl(38 78% 55%);
+  --color-amber-soft: hsl(38 78% 94%);
+
+  --color-success: hsl(152 50% 34%);
+  --color-success-soft: hsl(152 50% 92%);
+
+  --color-danger: hsl(6 62% 61%);
+  --color-danger-soft: hsl(6 62% 94%);
+
+  --font-display: var(--font-manrope), sans-serif;
+  --font-sans: var(--font-inter), sans-serif;
+  --font-mono: var(--font-mono), monospace;
+
+  --radius-card: 14px;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+::selection {
+  background-color: var(--color-primary-soft);
+}
+
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.shadow-card {
+  box-shadow:
+    0 1px 2px rgba(16, 33, 31, 0.04),
+    0 1px 12px rgba(16, 33, 31, 0.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
