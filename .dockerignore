@@ -1,0 +1,44 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Next
+.next
+**/.next
+out
+
+# Turbo
+.turbo
+
+# Build
+dist
+coverage
+
+# Git
+.git
+.github
+
+# macOS
+.DS_Store
+
+# Python
+**/__pycache__
+**/*.pyc
+services/backend/.venv
+services/backend/.pytest_cache
+
+# Logs
+*.log
+
+# Env
+.env
+.env.*
+
+# IDE
+.vscode
+.idea
+
+# Expo
+apps/mobile/.expo
+apps/mobile/android
+apps/mobile/ios

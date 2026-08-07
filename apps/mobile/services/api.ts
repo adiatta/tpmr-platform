@@ -1,9 +1,13 @@
 import axios from "axios";
-import Constants from "expo-constants";
 import { useAuthStore } from "@/stores/auth-store";
 import type { DriverProfile, Ride, RideStatus } from "@/lib/types";
 
-const API_URL = (Constants.expoConfig?.extra?.apiUrl as string) ?? "http://localhost:8000/api/v1";
+// EXPO_PUBLIC_* est injecté au build/démarrage par Expo (SDK 49+) depuis le
+// fichier .env à la racine de apps/mobile. Sur un appareil physique ou un
+// simulateur, "localhost" désigne l'appareil lui-même, PAS votre ordinateur —
+// il faut l'adresse IP locale de votre machine sur le Wi-Fi (cf. .env.example
+// et le README pour la commande qui la trouve).
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 const client = axios.create({ baseURL: API_URL, timeout: 15000 });
 
@@ -49,3 +53,7 @@ export const api = {
     return data;
   },
 };
+
+// Exporté pour affichage diagnostique (ex. écran Paramètres) si besoin de
+// vérifier en un coup d'œil quelle URL l'app essaie de joindre.
+export const API_BASE_URL = API_URL;

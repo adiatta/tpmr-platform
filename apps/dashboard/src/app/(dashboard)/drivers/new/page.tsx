@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { api } from "@/lib/api";
 
 const driverSchema = z.object({
   full_name: z.string().min(2, "Nom requis"),
@@ -19,6 +22,8 @@ const driverSchema = z.object({
 type DriverFormValues = z.infer<typeof driverSchema>;
 
 export default function NewDriverPage() {
+  const router = useRouter();
+  const [apiError, setApiError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -26,8 +31,13 @@ export default function NewDriverPage() {
   } = useForm<DriverFormValues>({ resolver: zodResolver(driverSchema) });
 
   async function onSubmit(values: DriverFormValues) {
-    // POST /api/v1/drivers — endpoint déjà livré côté backend (module 1)
-    console.log("Création chauffeur", values);
+    setApiError(null);
+    try {
+      await api.createDriver(values);
+      router.push("/drivers");
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : "Erreur lors de la création du chauffeur");
+    }
   }
 
   return (
@@ -45,6 +55,9 @@ export default function NewDriverPage() {
         <Field label="Mot de passe temporaire" error={errors.password?.message}>
           <Input type="password" {...register("password")} placeholder="••••••••" />
         </Field>
+        <p className="-mt-2 text-xs text-muted">
+          Le chauffeur utilisera cet email et ce mot de passe pour se connecter sur l'app mobile.
+        </p>
 
         <Field label="Téléphone" error={errors.phone?.message}>
           <Input {...register("phone")} placeholder="06 12 34 56 78" />
@@ -59,8 +72,12 @@ export default function NewDriverPage() {
           </Field>
         </div>
 
+        {apiError && (
+          <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{apiError}</p>
+        )}
+
         <div className="mt-2 flex justify-end gap-2">
-          <Button type="button" variant="ghost">
+          <Button type="button" variant="ghost" onClick={() => router.back()}>
             Annuler
           </Button>
           <Button type="submit" disabled={isSubmitting}>

@@ -10,9 +10,11 @@ from app.core.websocket_manager import start_redis_listener
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Relaie en tâche de fond les messages Redis pub/sub (positions GPS,
-    # notifications) publiés par les autres workers vers les WebSocket
-    # ouverts sur CE worker — cf. app/core/websocket_manager.py
+    # Diagnostic rapide au démarrage : si le dashboard n'arrive pas à se
+    # connecter, la première chose à vérifier est que son origine (celle
+    # affichée dans la barre d'adresse du navigateur) apparaît bien ici.
+    print(f"[TPMR] Origines CORS autorisées : {settings.CORS_ORIGINS}")
+
     listener_task = start_redis_listener()
     yield
     listener_task.cancel()

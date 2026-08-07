@@ -1,10 +1,9 @@
-import "../global.css";
 import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { useAuthStore } from "@/stores/auth-store";
-
+import "../global.css";
 
 const queryClient = new QueryClient();
 

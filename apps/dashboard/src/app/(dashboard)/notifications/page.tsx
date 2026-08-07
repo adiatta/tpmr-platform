@@ -1,36 +1,40 @@
-import { AlertTriangle, CheckCircle2, Car } from "lucide-react";
+"use client";
+
+import { Bell } from "lucide-react";
 import { Card } from "@/components/ui/card";
-
-interface Notification {
-  id: string;
-  type: "incident" | "completed" | "assigned";
-  text: string;
-  time: string;
-}
-
-// Données de démonstration — alimentées en réel par /api/v1/ws/notifications
-// (module temps réel déjà livré côté backend)
-const NOTIFICATIONS: Notification[] = [
-  { id: "1", type: "incident", text: "Incident signalé par Karim Benali sur la course de Nathan Roy", time: "il y a 4 min" },
-  { id: "2", type: "completed", text: "Course de Léo Martin terminée par Karim Benali", time: "il y a 22 min" },
-  { id: "3", type: "assigned", text: "Course de Adam Lefèvre assignée à Yanis Cherif", time: "il y a 1h" },
-];
-
-const ICONS = {
-  incident: <AlertTriangle size={16} className="text-danger" />,
-  completed: <CheckCircle2 size={16} className="text-success" />,
-  assigned: <Car size={16} className="text-primary" />,
-};
+import { useLiveNotifications } from "@/hooks/use-live-notifications";
 
 export default function NotificationsPage() {
+  const { notifications, connected } = useLiveNotifications();
+
   return (
     <div className="flex max-w-2xl flex-col gap-3">
-      {NOTIFICATIONS.map((n) => (
+      <div className="mb-2 flex items-center gap-2">
+        <span className={`h-2 w-2 rounded-full ${connected ? "bg-success" : "bg-danger"}`} />
+        <p className="text-sm text-muted">
+          {connected ? "Connecté au flux temps réel" : "Connexion..."}
+        </p>
+      </div>
+
+      {notifications.length === 0 && (
+        <Card className="flex flex-col items-center gap-2 py-10 text-center">
+          <Bell size={22} className="text-muted" />
+          <p className="text-sm text-muted">
+            Aucune notification reçue depuis l'ouverture de cette page. Les nouveaux
+            événements (changement de statut de course, message) apparaîtront ici en direct.
+          </p>
+        </Card>
+      )}
+
+      {notifications.map((n) => (
         <Card key={n.id} className="flex items-start gap-3">
-          <div className="mt-0.5">{ICONS[n.type]}</div>
+          <Bell size={16} className="mt-0.5 text-primary" />
           <div>
-            <p className="text-sm">{n.text}</p>
-            <p className="mt-0.5 text-xs text-muted">{n.time}</p>
+            <p className="text-sm font-medium">{n.title}</p>
+            <p className="text-sm text-muted">{n.body}</p>
+            <p className="mt-0.5 text-xs text-muted">
+              {new Date(n.receivedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            </p>
           </div>
         </Card>
       ))}

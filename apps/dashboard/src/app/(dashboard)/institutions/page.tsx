@@ -1,46 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, MapPin, Phone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-interface Institution {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  opening_hours: string;
-}
-
-// Données de démonstration — à remplacer par GET /api/v1/institutions
-const INITIAL: Institution[] = [
-  { id: "1", name: "IME Les Tournesols", address: "5 av. des Tournesols, 75015 Paris", phone: "01 45 67 89 10", opening_hours: "8h30 – 16h30" },
-  { id: "2", name: "SESSAD Horizon", address: "22 rue Horizon, 75012 Paris", phone: "01 43 21 09 87", opening_hours: "9h00 – 17h00" },
-];
+import { api, type Institution } from "@/lib/api";
 
 export default function InstitutionsPage() {
-  const [institutions, setInstitutions] = useState(INITIAL);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", address: "", phone: "", opening_hours: "" });
 
-  function addInstitution() {
+  useEffect(() => {
+    api
+      .listInstitutions()
+      .then(setInstitutions)
+      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function addInstitution() {
     if (!form.name.trim() || !form.address.trim()) return;
-    setInstitutions((prev) => [...prev, { id: crypto.randomUUID(), ...form }]);
-    setForm({ name: "", address: "", phone: "", opening_hours: "" });
-    setShowForm(false);
+    setSubmitting(true);
+    try {
+      const created = await api.createInstitution({
+        name: form.name,
+        address: form.address,
+        phone: form.phone || null,
+        opening_hours: form.opening_hours || null,
+        latitude: null,
+        longitude: null,
+      });
+      setInstitutions((prev) => [...prev, created]);
+      setForm({ name: "", address: "", phone: "", opening_hours: "" });
+      setShowForm(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la création");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted">{institutions.length} établissements</p>
+        <p className="text-sm text-muted">
+          {loading ? "Chargement..." : `${institutions.length} établissements`}
+        </p>
         <Button onClick={() => setShowForm((v) => !v)}>
           <Plus size={16} />
           Ajouter un établissement
         </Button>
       </div>
+
+      {error && (
+        <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>
+      )}
 
       {showForm && (
         <Card className="max-w-xl">
@@ -53,7 +72,9 @@ export default function InstitutionsPage() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setShowForm(false)}>Annuler</Button>
-              <Button onClick={addInstitution}>Enregistrer</Button>
+              <Button onClick={addInstitution} disabled={submitting}>
+                {submitting ? "Enregistrement..." : "Enregistrer"}
+              </Button>
             </div>
           </div>
         </Card>
@@ -67,13 +88,20 @@ export default function InstitutionsPage() {
               <MapPin size={14} className="mt-0.5" />
               {inst.address}
             </div>
-            <div className="mt-1 flex items-center gap-2 text-sm text-muted">
-              <Phone size={14} />
-              {inst.phone}
-            </div>
-            <p className="mt-2 text-xs text-muted">Horaires : {inst.opening_hours}</p>
+            {inst.phone && (
+              <div className="mt-1 flex items-center gap-2 text-sm text-muted">
+                <Phone size={14} />
+                {inst.phone}
+              </div>
+            )}
+            {inst.opening_hours && (
+              <p className="mt-2 text-xs text-muted">Horaires : {inst.opening_hours}</p>
+            )}
           </Card>
         ))}
+        {!loading && institutions.length === 0 && (
+          <p className="text-sm text-muted">Aucun établissement pour le moment.</p>
+        )}
       </div>
     </div>
   );

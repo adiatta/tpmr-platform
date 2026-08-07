@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
+import { api, API_BASE_URL } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -22,7 +22,20 @@ export default function LoginPage() {
       window.sessionStorage.setItem("tpmr_access_token", access_token);
       router.push("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur de connexion");
+      // "Load failed" / "Failed to fetch" = le navigateur n'a même pas réussi
+      // à joindre le serveur (mauvais port, backend arrêté, ou CORS bloqué
+      // avant que la requête ne parte). On distingue ce cas des erreurs
+      // métier (401, etc.) qui, elles, viennent bien du backend.
+      if (err instanceof TypeError) {
+        setError(
+          `Impossible de joindre l'API sur ${API_BASE_URL}. Vérifiez que le ` +
+            `backend tourne bien sur ce port et que l'origine de ce dashboard ` +
+            `(${typeof window !== "undefined" ? window.location.origin : ""}) ` +
+            `figure dans CORS_ORIGINS côté backend.`,
+        );
+      } else {
+        setError(err instanceof Error ? err.message : "Erreur de connexion");
+      }
     } finally {
       setLoading(false);
     }

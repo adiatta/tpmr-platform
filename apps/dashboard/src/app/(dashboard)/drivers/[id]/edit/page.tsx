@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -7,38 +8,55 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { api } from "@/lib/api";
 
 const schema = z.object({
   full_name: z.string().min(2, "Nom requis"),
   phone: z.string().min(6, "Téléphone requis"),
   vehicle_plate: z.string().optional(),
   vehicle_model: z.string().optional(),
-  is_active: z.boolean(),
 });
 type FormValues = z.infer<typeof schema>;
-
-// Données de démonstration — à remplacer par GET /api/v1/drivers/{id}
-const DEMO_DRIVER: FormValues = {
-  full_name: "Karim Benali",
-  phone: "06 12 34 56 78",
-  vehicle_plate: "AB-123-CD",
-  vehicle_model: "Renault Kangoo",
-  is_active: true,
-};
 
 export default function EditDriverPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEMO_DRIVER });
+  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  useEffect(() => {
+    api
+      .getDriver(params.id)
+      .then((driver) =>
+        reset({
+          full_name: driver.full_name,
+          phone: driver.phone,
+          vehicle_plate: driver.vehicle_plate ?? "",
+          vehicle_model: driver.vehicle_model ?? "",
+        }),
+      )
+      .catch((err) => setApiError(err instanceof Error ? err.message : "Erreur de chargement"))
+      .finally(() => setLoading(false));
+  }, [params.id, reset]);
 
   async function onSubmit(values: FormValues) {
-    // PATCH /api/v1/drivers/{id} — endpoint déjà livré côté backend
-    console.log("Mise à jour chauffeur", params.id, values);
-    router.push("/drivers");
+    setApiError(null);
+    try {
+      await api.updateDriver(params.id, values);
+      router.push("/drivers");
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : "Erreur lors de l'enregistrement");
+    }
+  }
+
+  if (loading) {
+    return <p className="text-sm text-muted">Chargement...</p>;
   }
 
   return (
@@ -68,10 +86,7 @@ export default function EditDriverPage() {
           </label>
         </div>
 
-        <label className="flex items-center gap-2">
-          <input type="checkbox" {...register("is_active")} className="h-4 w-4 rounded border-border" />
-          <span className="text-sm font-medium">Compte actif</span>
-        </label>
+        {apiError && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{apiError}</p>}
 
         <div className="mt-2 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => router.back()}>

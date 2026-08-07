@@ -36,13 +36,24 @@ pnpm --filter @tpmr/dashboard dev   # http://localhost:3000
 | Paramètres | `/settings` |
 | Profil | `/profile` |
 
-La plupart des listes/formulaires utilisent des données de démonstration en dur
-(clairement commentées `// Données de démonstration`) — le client API
-(`src/lib/api.ts`) est prêt, il ne reste qu'à brancher React Query sur chaque
-page pour consommer le backend réel. Les endpoints suivants restent à créer
-côté backend pour brancher certaines pages : `/institutions`, `/pricing`,
-`/billing`, `/messages` (le modèle `Pricing`/`Institution` existe déjà,
-`Message`/`Invoice` restent à créer — cf. feuille de route).
+## Pages branchées sur l'API réelle
+
+Chauffeurs (liste + ajout + modification), Enfants (liste + ajout + modification),
+Courses (liste + création), Établissements, Tarifs (+ simulateur) — toutes
+appellent réellement le backend via `src/lib/api.ts`, plus de données figées.
+
+Il faut un compte admin pour se connecter (`python -m scripts.seed_admin`,
+cf. README backend) — c'est lui qui permet de créer les chauffeurs, qui se
+connectent ensuite sur l'app mobile avec le même email/mot de passe.
+
+## Pages encore sur données de démonstration
+
+Catégories de chauffeurs (modèle `DriverCategory` existe côté backend, pas
+encore d'endpoints CRUD), Planning, Calendrier, Facturation, Rapports,
+Messagerie, Notifications, Paramètres, Profil — en attente des modules
+backend correspondants (facturation, messagerie) ou de endpoints
+d'agrégation (planning/rapports peuvent déjà être dérivés de `GET /rides`,
+juste pas encore branchés).
 
 ## Identité visuelle
 

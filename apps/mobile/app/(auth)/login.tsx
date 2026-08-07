@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { TextField } from "@/components/ui/text-field";
 import { Button } from "@/components/ui/button";
-import { api } from "@/services/api";
+import { api, API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/stores/auth-store";
 
 const schema = z.object({
@@ -27,13 +27,28 @@ export default function LoginScreen() {
   async function onSubmit(values: FormValues) {
     setApiError(null);
     try {
-      const { access_token } = await api.login(values.email, values.password);
-      // On stocke le token avant d'appeler /me pour que l'intercepteur axios l'utilise
+      const { access_token } = await api.login(values.email.trim(), values.password);
       useAuthStore.setState({ token: access_token });
       const driver = await api.me();
       await setSession(access_token, driver as never);
-    } catch {
-      setApiError("Email ou mot de passe incorrect");
+    } catch (err: any) {
+      // Une erreur réseau (le téléphone n'arrive même pas à joindre le
+      // serveur) et une erreur 401 (mauvais identifiants, mais le serveur
+      // a bien répondu) doivent afficher des messages différents — sinon
+      // impossible de savoir laquelle des deux causes on affronte.
+      const isNetworkError = !err?.response;
+      if (isNetworkError) {
+        setApiError(
+          `Impossible de joindre le serveur sur ${API_BASE_URL}. ` +
+            `Vérifiez : (1) le backend tourne avec --host 0.0.0.0, ` +
+            `(2) le téléphone est sur le même Wi-Fi que l'ordinateur, ` +
+            `(3) le pare-feu du Mac autorise les connexions entrantes.`,
+        );
+      } else if (err?.response?.status === 401) {
+        setApiError("Email ou mot de passe incorrect.");
+      } else {
+        setApiError(err?.message ?? "Erreur de connexion");
+      }
     }
   }
 
@@ -58,6 +73,7 @@ export default function LoginScreen() {
             <TextField
               label="Email"
               autoCapitalize="none"
+              autoCorrect={false}
               keyboardType="email-address"
               placeholder="prenom.nom@tpmr.fr"
               value={field.value}
@@ -74,6 +90,8 @@ export default function LoginScreen() {
             <TextField
               label="Mot de passe"
               secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
               placeholder="••••••••"
               value={field.value}
               onChangeText={field.onChange}
@@ -89,6 +107,8 @@ export default function LoginScreen() {
         )}
 
         <Button label="Se connecter" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
+
+        <Text className="mt-3 text-center text-xs text-muted">API : {API_BASE_URL}</Text>
 
         <Link href="/(auth)/forgot-password" className="mt-5 self-center">
           <Text className="text-sm font-medium text-primary">Mot de passe oublié ?</Text>

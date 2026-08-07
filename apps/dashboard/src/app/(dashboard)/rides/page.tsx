@@ -1,31 +1,47 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { RideStatusBadge } from "@/components/ui/ride-status-badge";
 import { RideStatusTimeline } from "@/components/ui/ride-status-timeline";
-import type { RideStatus } from "@/lib/types";
-
-// Données de démonstration — à remplacer par GET /api/v1/rides.
-const RIDES: {
-  id: string;
-  child: string;
-  driver: string;
-  time: string;
-  status: RideStatus;
-}[] = [
-  { id: "1", child: "Léo Martin", driver: "Karim Benali", time: "08:15", status: "terminee" },
-  { id: "2", child: "Nina Dubois", driver: "Sophie Renard", time: "08:30", status: "en_route_vers_etablissement" },
-  { id: "3", child: "Adam Lefèvre", driver: "Yanis Cherif", time: "09:00", status: "assignee" },
-  { id: "4", child: "Chloé Petit", driver: "—", time: "09:15", status: "en_attente" },
-  { id: "5", child: "Nathan Roy", driver: "Karim Benali", time: "16:00", status: "incident" },
-];
+import { api } from "@/lib/api";
+import type { Child, Driver, Ride } from "@/lib/types";
 
 export default function RidesPage() {
+  const [rides, setRides] = useState<Ride[]>([]);
+  const [children, setChildren] = useState<Child[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([api.listRides(), api.listChildren(), api.listDrivers()])
+      .then(([ridesData, childrenData, driversData]) => {
+        setRides(ridesData);
+        setChildren(childrenData);
+        setDrivers(driversData);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  function childName(id: string) {
+    const child = children.find((c) => c.id === id);
+    return child ? `${child.first_name} ${child.last_name}` : "—";
+  }
+
+  function driverName(id: string | null) {
+    if (!id) return "—";
+    return drivers.find((d) => d.id === id)?.full_name ?? "—";
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted">{RIDES.length} courses aujourd'hui</p>
+        <p className="text-sm text-muted">{loading ? "Chargement..." : `${rides.length} courses`}</p>
         <Link href="/rides/new">
           <Button>
             <Plus size={16} />
@@ -33,6 +49,8 @@ export default function RidesPage() {
           </Button>
         </Link>
       </div>
+
+      {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
 
       <Card className="p-0 overflow-hidden">
         <table className="w-full text-sm">
@@ -46,11 +64,13 @@ export default function RidesPage() {
             </tr>
           </thead>
           <tbody>
-            {RIDES.map((ride) => (
+            {rides.map((ride) => (
               <tr key={ride.id} className="border-b border-border last:border-0 hover:bg-background/40">
-                <td className="px-4 py-3 font-mono text-xs text-muted">{ride.time}</td>
-                <td className="px-4 py-3 font-medium">{ride.child}</td>
-                <td className="px-4 py-3 text-muted">{ride.driver}</td>
+                <td className="px-4 py-3 font-mono text-xs text-muted">
+                  {new Date(ride.scheduled_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                </td>
+                <td className="px-4 py-3 font-medium">{childName(ride.child_id)}</td>
+                <td className="px-4 py-3 text-muted">{driverName(ride.driver_id)}</td>
                 <td className="px-4 py-3">
                   <RideStatusTimeline status={ride.status} />
                 </td>
@@ -61,6 +81,9 @@ export default function RidesPage() {
             ))}
           </tbody>
         </table>
+        {!loading && rides.length === 0 && (
+          <p className="p-4 text-sm text-muted">Aucune course pour le moment.</p>
+        )}
       </Card>
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -7,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { api, type Institution } from "@/lib/api";
 
 const schema = z.object({
   first_name: z.string().min(1, "Prénom requis"),
@@ -21,16 +23,30 @@ type FormValues = z.infer<typeof schema>;
 
 export default function NewChildPage() {
   const router = useRouter();
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
+  useEffect(() => {
+    api.listInstitutions().then(setInstitutions).catch(() => {});
+  }, []);
+
   async function onSubmit(values: FormValues) {
-    // POST /api/v1/children — endpoint déjà livré côté backend
-    console.log("Création enfant", values);
-    router.push("/children");
+    setApiError(null);
+    try {
+      await api.createChild({
+        ...values,
+        institution_id: values.institution_id || null,
+        special_needs: values.special_needs || null,
+      });
+      router.push("/children");
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : "Erreur lors de la création");
+    }
   }
 
   return (
@@ -50,9 +66,20 @@ export default function NewChildPage() {
           <Input {...register("home_address")} placeholder="12 rue des Lilas, 75020 Paris" />
         </Field>
 
-        <Field label="Établissement">
-          <Input {...register("institution_id")} placeholder="IME Les Tournesols" />
-        </Field>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">Établissement</span>
+          <select
+            {...register("institution_id")}
+            className="focus-ring h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground"
+          >
+            <option value="">— Aucun —</option>
+            {institutions.map((inst) => (
+              <option key={inst.id} value={inst.id}>
+                {inst.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Nom du responsable" error={errors.guardian_name?.message}>
@@ -66,6 +93,8 @@ export default function NewChildPage() {
         <Field label="Besoins spécifiques">
           <Input {...register("special_needs")} placeholder="Fauteuil roulant, accompagnement..." />
         </Field>
+
+        {apiError && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{apiError}</p>}
 
         <div className="mt-2 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => router.back()}>

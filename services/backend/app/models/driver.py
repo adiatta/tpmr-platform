@@ -41,3 +41,16 @@ class Driver(Base):
     user = relationship("User")
     category: Mapped["DriverCategory"] = relationship(back_populates="drivers")
     rides: Mapped[list["Ride"]] = relationship(back_populates="driver")
+
+    # DriverOut (schemas/driver.py) attend full_name/email, qui vivent en
+    # réalité sur User (auth centralisée là-bas, cf. app/models/user.py).
+    # Ces propriétés font le pont pour que la sérialisation Pydantic
+    # (response_model=DriverOut, from_attributes=True) trouve ces champs
+    # directement sur l'objet Driver, sans dupliquer les colonnes.
+    @property
+    def full_name(self) -> str:
+        return self.user.full_name
+
+    @property
+    def email(self) -> str:
+        return self.user.email

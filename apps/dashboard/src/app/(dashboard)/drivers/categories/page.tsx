@@ -1,37 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-interface Category {
-  id: string;
-  name: string;
-  description: string;
-}
-
-// Données de démonstration — à remplacer par GET /api/v1/drivers/categories
-const INITIAL: Category[] = [
-  { id: "1", name: "Standard", description: "Véhicule léger, sans équipement spécifique" },
-  { id: "2", name: "PMR", description: "Véhicule aménagé fauteuil roulant" },
-];
+import { api, type DriverCategory } from "@/lib/api";
 
 export default function DriverCategoriesPage() {
-  const [categories, setCategories] = useState(INITIAL);
+  const [categories, setCategories] = useState<DriverCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function addCategory() {
+  useEffect(() => {
+    api
+      .listDriverCategories()
+      .then(setCategories)
+      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function addCategory() {
     if (!name.trim()) return;
-    setCategories((prev) => [...prev, { id: crypto.randomUUID(), name, description }]);
-    setName("");
-    setDescription("");
+    setSubmitting(true);
+    try {
+      const created = await api.createDriverCategory({ name, description: description || undefined });
+      setCategories((prev) => [...prev, created]);
+      setName("");
+      setDescription("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la création");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function removeCategory(id: string) {
-    setCategories((prev) => prev.filter((c) => c.id !== id));
+  async function removeCategory(id: string) {
+    try {
+      await api.deleteDriverCategory(id);
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    }
   }
 
   return (
@@ -40,24 +53,19 @@ export default function DriverCategoriesPage() {
         <h2 className="mb-4 font-display text-base font-semibold">Nouvelle catégorie</h2>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Input placeholder="Nom (ex. PMR)" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input
-            placeholder="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-          <Button onClick={addCategory}>
+          <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <Button onClick={addCategory} disabled={submitting}>
             <Plus size={16} />
             Ajouter
           </Button>
         </div>
       </Card>
 
+      {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
+
       <Card className="max-w-xl p-0 overflow-hidden">
         {categories.map((category) => (
-          <div
-            key={category.id}
-            className="flex items-center justify-between border-b border-border p-4 last:border-0"
-          >
+          <div key={category.id} className="flex items-center justify-between border-b border-border p-4 last:border-0">
             <div>
               <p className="text-sm font-medium">{category.name}</p>
               <p className="text-sm text-muted">{category.description}</p>
@@ -71,6 +79,9 @@ export default function DriverCategoriesPage() {
             </button>
           </div>
         ))}
+        {!loading && categories.length === 0 && (
+          <p className="p-4 text-sm text-muted">Aucune catégorie pour le moment.</p>
+        )}
       </Card>
     </div>
   );
