@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,6 +16,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function LoginScreen() {
+  const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
   const [apiError, setApiError] = useState<string | null>(null);
   const {
@@ -31,11 +32,15 @@ export default function LoginScreen() {
       useAuthStore.setState({ token: access_token });
       const driver = await api.me();
       await setSession(access_token, driver as never);
+
+      // Redirection explicite — nécessaire depuis qu'on est passé au pattern
+      // <Redirect> déclaratif dans app/index.tsx : ce fichier-là ne se
+      // ré-évalue qu'au lancement de l'app, pas quand le token change
+      // pendant qu'on est déjà sur l'écran /(auth)/login. Sans cet appel,
+      // la connexion réussit (cf. logs backend 200 OK) mais l'app reste
+      // affichée sur le formulaire.
+      router.replace("/(tabs)/home");
     } catch (err: any) {
-      // Une erreur réseau (le téléphone n'arrive même pas à joindre le
-      // serveur) et une erreur 401 (mauvais identifiants, mais le serveur
-      // a bien répondu) doivent afficher des messages différents — sinon
-      // impossible de savoir laquelle des deux causes on affronte.
       const isNetworkError = !err?.response;
       if (isNetworkError) {
         setApiError(

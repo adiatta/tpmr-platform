@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { api } from "@/lib/api";
 import type { Driver } from "@/lib/types";
 
@@ -20,6 +21,15 @@ export default function DriversPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleDelete(id: string) {
+    try {
+      await api.deleteDriver(id);
+      setDrivers((prev) => prev.filter((d) => d.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -45,6 +55,7 @@ export default function DriversPage() {
               <th className="px-4 py-3 font-medium">Téléphone</th>
               <th className="px-4 py-3 font-medium">Véhicule</th>
               <th className="px-4 py-3 font-medium">Statut</th>
+              <th className="px-4 py-3 font-medium" />
             </tr>
           </thead>
           <tbody>
@@ -69,11 +80,15 @@ export default function DriversPage() {
                       driver.is_online ? "text-success" : "text-muted"
                     }`}
                   >
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${driver.is_online ? "bg-success" : "bg-border"}`}
-                    />
+                    <span className={`h-1.5 w-1.5 rounded-full ${driver.is_online ? "bg-success" : "bg-border"}`} />
                     {driver.is_online ? "En ligne" : "Hors ligne"}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <ConfirmDeleteButton
+                    label={`Supprimer ${driver.full_name}`}
+                    onConfirm={() => handleDelete(driver.id)}
+                  />
                 </td>
               </tr>
             ))}

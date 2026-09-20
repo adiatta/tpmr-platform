@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin
@@ -12,6 +13,7 @@ from app.models.ride import RIDE_STATUS_LABELS_FR, RideStatus
 from app.models.user import User
 from app.schemas.ride import RideCreate, RideOut, RideStatusUpdate, RideUpdate
 from app.services.geo_service import compute_route
+from app.services.push_notifications import send_push_notification
 
 router = APIRouter(prefix="/rides", tags=["rides"])
 
@@ -32,8 +34,6 @@ def list_rides(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[RideOut]:
-    """Les admins voient toutes les courses ; un chauffeur ne voit que les siennes
-    (filtrage à affiner selon le lien User→Driver une fois l'app mobile branchée)."""
     return ride_crud.list_rides(db, skip, limit, status_filter, driver_id)
 
 
@@ -57,7 +57,19 @@ def update_ride(
     ride = ride_crud.get_ride(db, ride_id)
     if not ride:
         raise HTTPException(status_code=404, detail="Course introuvable")
-    return ride_crud.update_ride(db, ride, payload)
+    updated = ride_crud.update_ride(db, ride, payload)
+
+    if payload.driver_id and updated.driver and updated.driver.push_token:
+        import asyncio
+
+        asyncio.create_task(
+            send_push_notification(
+                updated.driver.push_token,
+                "Nouvelle course assignée",
+                f"Départ prévu à {updated.scheduled_at.strftime('%H:%M')}",
+            )
+        )
+    return updated
 
 
 @router.post("/{ride_id}/status", response_model=RideOut)
@@ -75,8 +87,6 @@ async def change_status(
     except InvalidStatusTransition as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
-    # Notifie le dispatch (dashboard admin) de chaque changement de statut.
-    # En prod : cibler aussi le parent/responsable légal selon le statut.
     await publish_notification(
         user_id="dispatch",
         title="Mise à jour de course",
@@ -89,7 +99,6 @@ async def change_status(
 def get_eta(
     ride_id: uuid.UUID, db: Session = Depends(get_db), _: User = Depends(get_current_user)
 ) -> dict:
-    """Calcule distance/durée/ETA en fonction de la position actuelle du chauffeur."""
     ride = ride_crud.get_ride(db, ride_id)
     if not ride or not ride.driver:
         raise HTTPException(status_code=404, detail="Course ou chauffeur introuvable")
@@ -112,4 +121,12 @@ def delete_ride(
     ride = ride_crud.get_ride(db, ride_id)
     if not ride:
         raise HTTPException(status_code=404, detail="Course introuvable")
-    ride_crud.delete_ride(db, ride)
+    try:
+        ride_crud.delete_ride(db, ride)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Impossible de supprimer cette course : elle est déjà rattachée à une "
+            "facture. Supprimez d'abord la facture concernée si nécessaire.",
+        ) from None

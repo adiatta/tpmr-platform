@@ -18,7 +18,7 @@ def create_driver(db: Session, data: DriverCreate) -> Driver:
         role=UserRole.DRIVER,
     )
     db.add(user)
-    db.flush()  # récupère user.id sans commit
+    db.flush()
 
     driver = Driver(
         user_id=user.id,
@@ -59,6 +59,20 @@ def update_driver_position(db: Session, driver: Driver, lat: float, lng: float) 
     driver.current_longitude = lng
     driver.last_position_at = datetime.utcnow()
     driver.is_online = True
+    db.commit()
+    db.refresh(driver)
+    return driver
+
+
+def set_driver_offline(db: Session, driver: Driver) -> Driver:
+    driver.is_online = False
+    db.commit()
+    db.refresh(driver)
+    return driver
+
+
+def set_push_token(db: Session, driver: Driver, push_token: str) -> Driver:
+    driver.push_token = push_token
     db.commit()
     db.refresh(driver)
     return driver

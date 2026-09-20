@@ -2,11 +2,6 @@ import axios from "axios";
 import { useAuthStore } from "@/stores/auth-store";
 import type { DriverProfile, Ride, RideStatus } from "@/lib/types";
 
-// EXPO_PUBLIC_* est injecté au build/démarrage par Expo (SDK 49+) depuis le
-// fichier .env à la racine de apps/mobile. Sur un appareil physique ou un
-// simulateur, "localhost" désigne l'appareil lui-même, PAS votre ordinateur —
-// il faut l'adresse IP locale de votre machine sur le Wi-Fi (cf. .env.example
-// et le README pour la commande qui la trouve).
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 const client = axios.create({ baseURL: API_URL, timeout: 15000 });
@@ -18,6 +13,15 @@ client.interceptors.request.use((config) => {
   }
   return config;
 });
+
+export interface MessageOut {
+  id: string;
+  driver_id: string;
+  sender_role: "admin" | "driver";
+  content: string;
+  is_read: boolean;
+  created_at: string;
+}
 
 export const api = {
   login: async (email: string, password: string) => {
@@ -52,8 +56,25 @@ export const api = {
     const { data } = await client.post(`/drivers/${driverId}/position`, { latitude, longitude });
     return data;
   },
+
+  markOffline: async (driverId: string) => {
+    const { data } = await client.post(`/drivers/${driverId}/offline`);
+    return data;
+  },
+
+  registerPushToken: async (driverId: string, pushToken: string) => {
+    const { data } = await client.post(`/drivers/${driverId}/push-token`, { push_token: pushToken });
+    return data;
+  },
+
+  getConversation: async (driverId: string) => {
+    const { data } = await client.get<MessageOut[]>(`/messages/${driverId}`);
+    return data;
+  },
+  sendMessage: async (driverId: string, content: string) => {
+    const { data } = await client.post<MessageOut>(`/messages/${driverId}`, { content });
+    return data;
+  },
 };
 
-// Exporté pour affichage diagnostique (ex. écran Paramètres) si besoin de
-// vérifier en un coup d'œil quelle URL l'app essaie de joindre.
 export const API_BASE_URL = API_URL;

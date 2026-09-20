@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin
@@ -56,4 +57,12 @@ def delete_institution(
     institution = institution_crud.get_institution(db, institution_id)
     if not institution:
         raise HTTPException(status_code=404, detail="Établissement introuvable")
-    institution_crud.delete_institution(db, institution)
+    try:
+        institution_crud.delete_institution(db, institution)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Impossible de supprimer cet établissement : des enfants ou tarifs y "
+            "sont encore rattachés. Réassignez-les d'abord.",
+        ) from None

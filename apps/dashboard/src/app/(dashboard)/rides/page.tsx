@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { RideStatusBadge } from "@/components/ui/ride-status-badge";
 import { RideStatusTimeline } from "@/components/ui/ride-status-timeline";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { api } from "@/lib/api";
+import { useLiveNotifications } from "@/hooks/use-live-notifications";
 import type { Child, Driver, Ride } from "@/lib/types";
 
 export default function RidesPage() {
@@ -17,16 +19,25 @@ export default function RidesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([api.listRides(), api.listChildren(), api.listDrivers()])
+  const loadAll = useCallback(() => {
+    return Promise.all([api.listRides(), api.listChildren(), api.listDrivers()])
       .then(([ridesData, childrenData, driversData]) => {
         setRides(ridesData);
         setChildren(childrenData);
         setDrivers(driversData);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"))
-      .finally(() => setLoading(false));
+      .catch((err) => setError(err instanceof Error ? err.message : "Erreur de chargement"));
   }, []);
+
+  useEffect(() => {
+    loadAll().finally(() => setLoading(false));
+  }, [loadAll]);
+
+  const { notifications } = useLiveNotifications();
+  useEffect(() => {
+    if (notifications.length > 0) loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications.length]);
 
   function childName(id: string) {
     const child = children.find((c) => c.id === id);
@@ -36,6 +47,15 @@ export default function RidesPage() {
   function driverName(id: string | null) {
     if (!id) return "—";
     return drivers.find((d) => d.id === id)?.full_name ?? "—";
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await api.deleteRide(id);
+      setRides((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    }
   }
 
   return (
@@ -61,21 +81,34 @@ export default function RidesPage() {
               <th className="px-4 py-3 font-medium">Chauffeur</th>
               <th className="px-4 py-3 font-medium">Progression</th>
               <th className="px-4 py-3 font-medium">Statut</th>
+              <th className="px-4 py-3 font-medium" />
             </tr>
           </thead>
           <tbody>
             {rides.map((ride) => (
               <tr key={ride.id} className="border-b border-border last:border-0 hover:bg-background/40">
-                <td className="px-4 py-3 font-mono text-xs text-muted">
-                  {new Date(ride.scheduled_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/rides/${ride.id}/edit`}
+                    className="focus-ring block font-mono text-xs text-muted hover:text-primary"
+                  >
+                    {new Date(ride.scheduled_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  </Link>
                 </td>
-                <td className="px-4 py-3 font-medium">{childName(ride.child_id)}</td>
+                <td className="px-4 py-3">
+                  <Link href={`/rides/${ride.id}/edit`} className="focus-ring font-medium text-foreground hover:text-primary">
+                    {childName(ride.child_id)}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-muted">{driverName(ride.driver_id)}</td>
                 <td className="px-4 py-3">
                   <RideStatusTimeline status={ride.status} />
                 </td>
                 <td className="px-4 py-3">
                   <RideStatusBadge status={ride.status} />
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <ConfirmDeleteButton label="Supprimer cette course" onConfirm={() => handleDelete(ride.id)} />
                 </td>
               </tr>
             ))}

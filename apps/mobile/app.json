@@ -25,7 +25,9 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -42,7 +44,12 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://localhost:8000/api/v1"
-    }
+      "apiUrl": "http://localhost:8000/api/v1",
+      "router": {},
+      "eas": {
+        "projectId": "e60072fc-f642-4aaf-aaac-ca639ff892e6"
+      }
+    },
+    "owner": "adkrtp"
   }
 }

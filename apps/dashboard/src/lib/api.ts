@@ -7,6 +7,14 @@ function getToken(): string | null {
   return window.sessionStorage.getItem("tpmr_access_token");
 }
 
+let redirecting = false;
+function handleUnauthorized() {
+  if (redirecting || typeof window === "undefined") return;
+  redirecting = true;
+  window.sessionStorage.removeItem("tpmr_access_token");
+  window.location.href = "/login";
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -17,6 +25,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...options.headers,
     },
   });
+
+  if (res.status === 401 && path !== "/auth/login") {
+    handleUnauthorized();
+    throw new Error("Session expirée");
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -78,6 +91,21 @@ export interface CurrentUser {
   role: string;
 }
 
+export type InvoiceStatus = "brouillon" | "emise" | "payee";
+
+export interface InvoiceOut {
+  id: string;
+  institution_id: string | null;
+  institution_name: string | null;
+  child_id: string | null;
+  period_start: string;
+  period_end: string;
+  status: InvoiceStatus;
+  total_amount: number;
+  rides_count: number;
+  created_at: string;
+}
+
 export const api = {
   // --- Auth ---
   login: (email: string, password: string) =>
@@ -86,6 +114,23 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   me: () => request<CurrentUser>("/auth/me"),
+  updateProfile: (data: { full_name?: string; email?: string }) =>
+    request<CurrentUser>("/auth/me", { method: "PATCH", body: JSON.stringify(data) }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<void>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
+  forgotPassword: (email: string) =>
+    request<{ message: string; dev_reset_token?: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (token: string, newPassword: string) =>
+    request<void>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, new_password: newPassword }),
+    }),
 
   // --- Drivers ---
   listDrivers: () => request<Driver[]>("/drivers"),
@@ -110,6 +155,7 @@ export const api = {
       is_active: boolean;
     }>,
   ) => request<Driver>(`/drivers/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteDriver: (id: string) => request<void>(`/drivers/${id}`, { method: "DELETE" }),
 
   // --- Driver categories ---
   listDriverCategories: () => request<DriverCategory[]>("/driver-categories"),
@@ -141,6 +187,7 @@ export const api = {
       special_needs: string | null;
     }>,
   ) => request<Child>(`/children/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteChild: (id: string) => request<void>(`/children/${id}`, { method: "DELETE" }),
 
   // --- Rides ---
   listRides: (params?: { status_filter?: string; driver_id?: string }) => {
@@ -156,14 +203,28 @@ export const api = {
     scheduled_at: string;
     comment?: string | null;
   }) => request<Ride>("/rides", { method: "POST", body: JSON.stringify(data) }),
+  updateRide: (
+    id: string,
+    data: Partial<{
+      driver_id: string | null;
+      pickup_address: string;
+      dropoff_address: string;
+      scheduled_at: string;
+      comment: string | null;
+    }>,
+  ) => request<Ride>(`/rides/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   updateRideStatus: (rideId: string, status: RideStatus) =>
     request<Ride>(`/rides/${rideId}/status`, { method: "POST", body: JSON.stringify({ status }) }),
+  deleteRide: (id: string) => request<void>(`/rides/${id}`, { method: "DELETE" }),
 
   // --- Institutions ---
   listInstitutions: () => request<Institution[]>("/institutions"),
+  getInstitution: (id: string) => request<Institution>(`/institutions/${id}`),
   createInstitution: (data: Omit<Institution, "id">) =>
     request<Institution>("/institutions", { method: "POST", body: JSON.stringify(data) }),
-  deleteInstitution: (id: string) => request(`/institutions/${id}`, { method: "DELETE" }),
+  updateInstitution: (id: string, data: Partial<Omit<Institution, "id">>) =>
+    request<Institution>(`/institutions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteInstitution: (id: string) => request<void>(`/institutions/${id}`, { method: "DELETE" }),
 
   // --- Pricing ---
   listPricing: () => request<PricingRule[]>("/pricing"),
@@ -180,4 +241,20 @@ export const api = {
   getConversation: (driverId: string) => request<MessageOut[]>(`/messages/${driverId}`),
   sendMessage: (driverId: string, content: string) =>
     request<MessageOut>(`/messages/${driverId}`, { method: "POST", body: JSON.stringify({ content }) }),
+  deleteMessage: (messageId: string) => request<void>(`/messages/message/${messageId}`, { method: "DELETE" }),
+  deleteConversation: (driverId: string) => request<void>(`/messages/${driverId}`, { method: "DELETE" }),
+
+  // --- Billing ---
+  listInvoices: () => request<InvoiceOut[]>("/billing"),
+  generateInvoices: (periodStart: string, periodEnd: string) =>
+    request<InvoiceOut[]>("/billing/generate", {
+      method: "POST",
+      body: JSON.stringify({ period_start: periodStart, period_end: periodEnd }),
+    }),
+  updateInvoiceStatus: (invoiceId: string, status: InvoiceStatus) =>
+    request<InvoiceOut>(`/billing/${invoiceId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  invoicePdfUrl: (invoiceId: string) => `${API_BASE_URL}/billing/${invoiceId}/pdf`,
 };

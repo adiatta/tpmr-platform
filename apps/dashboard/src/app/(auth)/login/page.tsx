@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, API_BASE_URL } from "@/lib/api";
@@ -12,6 +13,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const token = window.sessionStorage.getItem("tpmr_access_token");
+    if (token) {
+      router.replace("/");
+      return;
+    }
+    setCheckingSession(false);
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,15 +33,10 @@ export default function LoginPage() {
       window.sessionStorage.setItem("tpmr_access_token", access_token);
       router.push("/");
     } catch (err) {
-      // "Load failed" / "Failed to fetch" = le navigateur n'a même pas réussi
-      // à joindre le serveur (mauvais port, backend arrêté, ou CORS bloqué
-      // avant que la requête ne parte). On distingue ce cas des erreurs
-      // métier (401, etc.) qui, elles, viennent bien du backend.
       if (err instanceof TypeError) {
         setError(
           `Impossible de joindre l'API sur ${API_BASE_URL}. Vérifiez que le ` +
             `backend tourne bien sur ce port et que l'origine de ce dashboard ` +
-            `(${typeof window !== "undefined" ? window.location.origin : ""}) ` +
             `figure dans CORS_ORIGINS côté backend.`,
         );
       } else {
@@ -39,6 +45,14 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-sm text-muted">Chargement...</p>
+      </div>
+    );
   }
 
   return (
@@ -73,7 +87,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="mb-5">
+          <div className="mb-2">
             <label htmlFor="password" className="mb-1.5 block text-sm font-medium">
               Mot de passe
             </label>
@@ -86,6 +100,12 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
             />
+          </div>
+
+          <div className="mb-5 text-right">
+            <Link href="/forgot-password" className="text-xs font-medium text-primary">
+              Mot de passe oublié ?
+            </Link>
           </div>
 
           {error && (

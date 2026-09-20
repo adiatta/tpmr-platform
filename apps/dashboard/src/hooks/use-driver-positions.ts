@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { API_BASE_URL } from "@/lib/api";
 
 interface DriverPosition {
   driver_id: string;
@@ -9,13 +10,11 @@ interface DriverPosition {
   updated_at: number;
 }
 
-const WS_URL =
-  (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1").replace(/^http/, "ws") +
-  "/ws/positions";
+const WS_URL = API_BASE_URL.replace(/^http/, "ws") + "/ws/positions";
 
-/** S'abonne à POST /api/v1/ws/positions (module WebSocket backend) et maintient
+/** S'abonne à /api/v1/ws/positions (module WebSocket backend) et maintient
  * une map { driver_id: dernière position connue } à jour en temps réel.
- * Reconnexion automatique avec backoff simple en cas de coupure. */
+ * Reconnexion automatique avec backoff en cas de coupure. */
 export function useDriverPositions() {
   const [positions, setPositions] = useState<Record<string, DriverPosition>>({});
   const [connected, setConnected] = useState(false);
@@ -34,12 +33,21 @@ export function useDriverPositions() {
       };
 
       socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type !== "position") return;
-        setPositions((prev) => ({
-          ...prev,
-          [data.driver_id]: { ...data, updated_at: Date.now() },
-        }));
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type !== "position") return;
+          setPositions((prev) => ({
+            ...prev,
+            [data.driver_id]: {
+              driver_id: data.driver_id,
+              latitude: data.latitude,
+              longitude: data.longitude,
+              updated_at: Date.now(),
+            },
+          }));
+        } catch {
+          // message inattendu, on ignore
+        }
       };
 
       socket.onclose = () => {

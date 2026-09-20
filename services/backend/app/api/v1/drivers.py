@@ -1,6 +1,8 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin
@@ -11,6 +13,10 @@ from app.models.user import User
 from app.schemas.driver import DriverCreate, DriverOut, DriverPositionUpdate, DriverUpdate
 
 router = APIRouter(prefix="/drivers", tags=["drivers"])
+
+
+class PushTokenUpdate(BaseModel):
+    push_token: str
 
 
 @router.post("", response_model=DriverOut, status_code=status.HTTP_201_CREATED)
@@ -57,14 +63,35 @@ async def update_position(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DriverOut:
-    """Appelé par l'app mobile chauffeur pour mettre à jour sa position GPS.
-    Diffusé ensuite aux clients WebSocket abonnés à la carte temps réel."""
     driver = driver_crud.get_driver(db, driver_id)
     if not driver:
         raise HTTPException(status_code=404, detail="Chauffeur introuvable")
     updated = driver_crud.update_driver_position(db, driver, payload.latitude, payload.longitude)
     await publish_position(str(driver_id), payload.latitude, payload.longitude)
     return updated
+
+
+@router.post("/{driver_id}/offline", response_model=DriverOut)
+async def set_offline(
+    driver_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> DriverOut:
+    driver = driver_crud.get_driver(db, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Chauffeur introuvable")
+    return driver_crud.set_driver_offline(db, driver)
+
+
+@router.post("/{driver_id}/push-token", response_model=DriverOut)
+def register_push_token(
+    driver_id: uuid.UUID,
+    payload: PushTokenUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DriverOut:
+    driver = driver_crud.get_driver(db, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Chauffeur introuvable")
+    return driver_crud.set_push_token(db, driver, payload.push_token)
 
 
 @router.delete("/{driver_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -74,4 +101,12 @@ def delete_driver(
     driver = driver_crud.get_driver(db, driver_id)
     if not driver:
         raise HTTPException(status_code=404, detail="Chauffeur introuvable")
-    driver_crud.delete_driver(db, driver)
+    try:
+        driver_crud.delete_driver(db, driver)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Impossible de supprimer ce chauffeur : des courses lui sont encore "
+            "rattachées. Réassignez ou supprimez d'abord ces courses.",
+        ) from None

@@ -1,17 +1,16 @@
-import { View, Text, ScrollView, Switch } from "react-native";
-import { useEffect, useState } from "react";
+import { View, Text, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { Car, CheckCircle2, Clock } from "lucide-react-native";
 import { useQuery } from "@tanstack/react-query";
 import { RideCard } from "@/components/course/ride-card";
 import { useAuthStore } from "@/stores/auth-store";
 import { api } from "@/services/api";
-import { requestLocationPermission, startSharingPosition, stopSharingPosition } from "@/services/location-tracking";
+import { useAutoOnlineStatus } from "@/hooks/use-auto-online";
 
 export default function HomeScreen() {
   const driver = useAuthStore((s) => s.driver);
   const router = useRouter();
-  const [isOnline, setIsOnline] = useState(false);
+  const isOnline = useAutoOnlineStatus();
 
   const { data: rides } = useQuery({
     queryKey: ["rides", driver?.id],
@@ -24,24 +23,6 @@ export default function HomeScreen() {
   const remaining = todayRides.filter((r) => r.status !== "terminee" && r.status !== "annulee").length;
   const nextRide = todayRides.find((r) => r.status !== "terminee" && r.status !== "annulee");
 
-  async function handleToggleOnline(value: boolean) {
-    if (value) {
-      const granted = await requestLocationPermission();
-      if (!granted || !driver) {
-        setIsOnline(false);
-        return;
-      }
-      await startSharingPosition(driver.id);
-    } else {
-      stopSharingPosition();
-    }
-    setIsOnline(value);
-  }
-
-  useEffect(() => {
-    return () => stopSharingPosition();
-  }, []);
-
   return (
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ padding: 20, paddingTop: 60 }}>
       <View className="mb-6 flex-row items-center justify-between">
@@ -49,9 +30,13 @@ export default function HomeScreen() {
           <Text className="text-sm text-muted">Bonjour</Text>
           <Text className="text-xl font-bold text-foreground">{driver?.full_name ?? "Chauffeur"}</Text>
         </View>
-        <View className="items-center">
-          <Switch value={isOnline} onValueChange={handleToggleOnline} trackColor={{ true: "#0F5C5C" }} />
-          <Text className="mt-1 text-xs font-medium text-muted">{isOnline ? "En ligne" : "Hors ligne"}</Text>
+        {/* Plus de bascule manuelle : en ligne dès que l'app est ouverte et
+            la position partagée (cf. hooks/use-auto-online.ts). */}
+        <View className="flex-row items-center gap-1.5 rounded-full bg-success-soft px-3 py-1.5">
+          <View className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-success" : "bg-border"}`} />
+          <Text className={`text-xs font-semibold ${isOnline ? "text-success" : "text-muted"}`}>
+            {isOnline ? "En ligne" : "Connexion..."}
+          </Text>
         </View>
       </View>
 
@@ -75,10 +60,7 @@ export default function HomeScreen() {
         Voir toutes mes courses →
       </Text>
 
-      <Text
-        className="text-sm font-semibold text-primary"
-        onPress={() => router.push("/calendar")}
-      >
+      <Text className="text-sm font-semibold text-primary" onPress={() => router.push("/calendar")}>
         Voir mon calendrier →
       </Text>
     </ScrollView>

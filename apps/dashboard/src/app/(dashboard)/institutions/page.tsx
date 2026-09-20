@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Plus, MapPin, Phone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { api, type Institution } from "@/lib/api";
 
 export default function InstitutionsPage() {
@@ -45,6 +47,15 @@ export default function InstitutionsPage() {
     }
   }
 
+  async function handleDelete(id: string) {
+    try {
+      await api.deleteInstitution(id);
+      setInstitutions((prev) => prev.filter((i) => i.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    }
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
@@ -57,9 +68,7 @@ export default function InstitutionsPage() {
         </Button>
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>
-      )}
+      {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
 
       {showForm && (
         <Card className="max-w-xl">
@@ -83,7 +92,15 @@ export default function InstitutionsPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {institutions.map((inst) => (
           <Card key={inst.id}>
-            <p className="mb-2 font-display text-base font-semibold">{inst.name}</p>
+            <div className="mb-2 flex items-start justify-between">
+              <Link
+                href={`/institutions/${inst.id}/edit`}
+                className="focus-ring font-display text-base font-semibold hover:text-primary"
+              >
+                {inst.name}
+              </Link>
+              <ConfirmDeleteButton label={`Supprimer ${inst.name}`} onConfirm={() => handleDelete(inst.id)} />
+            </div>
             <div className="flex items-start gap-2 text-sm text-muted">
               <MapPin size={14} className="mt-0.5" />
               {inst.address}
@@ -97,6 +114,12 @@ export default function InstitutionsPage() {
             {inst.opening_hours && (
               <p className="mt-2 text-xs text-muted">Horaires : {inst.opening_hours}</p>
             )}
+            <Link
+              href={`/institutions/${inst.id}/edit`}
+              className="focus-ring mt-3 inline-block text-xs font-medium text-primary"
+            >
+              Modifier →
+            </Link>
           </Card>
         ))}
         {!loading && institutions.length === 0 && (

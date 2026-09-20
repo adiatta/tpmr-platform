@@ -36,17 +36,18 @@ class Driver(Base):
     current_longitude: Mapped[float | None] = mapped_column(Float)
     last_position_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Token Expo Push (ExponentPushToken[...]) — enregistré automatiquement
+    # par l'app mobile après connexion, utilisé pour les notifications push
+    # (app fermée ou en arrière-plan). Nullable : un chauffeur qui ne s'est
+    # jamais connecté sur mobile n'en a pas encore.
+    push_token: Mapped[str | None] = mapped_column(String(255))
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     user = relationship("User")
     category: Mapped["DriverCategory"] = relationship(back_populates="drivers")
     rides: Mapped[list["Ride"]] = relationship(back_populates="driver")
 
-    # DriverOut (schemas/driver.py) attend full_name/email, qui vivent en
-    # réalité sur User (auth centralisée là-bas, cf. app/models/user.py).
-    # Ces propriétés font le pont pour que la sérialisation Pydantic
-    # (response_model=DriverOut, from_attributes=True) trouve ces champs
-    # directement sur l'objet Driver, sans dupliquer les colonnes.
     @property
     def full_name(self) -> str:
         return self.user.full_name

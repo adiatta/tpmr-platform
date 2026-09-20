@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.models.driver import Driver
@@ -20,10 +20,21 @@ def list_messages(db: Session, driver_id: uuid.UUID) -> list[Message]:
     return list(db.execute(stmt).scalars().all())
 
 
+def get_message(db: Session, message_id: uuid.UUID) -> Message | None:
+    return db.get(Message, message_id)
+
+
+def delete_message(db: Session, message: Message) -> None:
+    db.delete(message)
+    db.commit()
+
+
+def delete_conversation(db: Session, driver_id: uuid.UUID) -> None:
+    db.execute(delete(Message).where(Message.driver_id == driver_id))
+    db.commit()
+
+
 def mark_conversation_read(db: Session, driver_id: uuid.UUID, reader_role: SenderRole) -> None:
-    """Marque comme lus les messages envoyés par L'AUTRE partie — un admin qui
-    ouvre la conversation marque les messages du chauffeur comme lus, et
-    inversement."""
     other_role = SenderRole.DRIVER if reader_role == SenderRole.ADMIN else SenderRole.ADMIN
     stmt = select(Message).where(Message.driver_id == driver_id, Message.sender_role == other_role, Message.is_read.is_(False))
     for message in db.execute(stmt).scalars().all():
@@ -32,8 +43,6 @@ def mark_conversation_read(db: Session, driver_id: uuid.UUID, reader_role: Sende
 
 
 def list_conversations(db: Session) -> list[dict]:
-    """Un résumé par chauffeur : dernier message + nombre de non-lus (côté
-    admin, donc messages envoyés par le chauffeur et non encore lus)."""
     drivers = db.execute(select(Driver)).scalars().all()
     summaries = []
     for driver in drivers:

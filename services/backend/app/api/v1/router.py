@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     auth,
+    billing,
     children,
     driver_categories,
     drivers,
@@ -21,4 +22,5 @@ api_router.include_router(rides.router)
 api_router.include_router(institutions.router)
 api_router.include_router(pricing.router)
 api_router.include_router(messages.router)
+api_router.include_router(billing.router)
 api_router.include_router(websocket.router)

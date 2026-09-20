@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin
@@ -56,4 +57,12 @@ def delete_child(
     child = child_crud.get_child(db, child_id)
     if not child:
         raise HTTPException(status_code=404, detail="Enfant introuvable")
-    child_crud.delete_child(db, child)
+    try:
+        child_crud.delete_child(db, child)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Impossible de supprimer cet enfant : des courses ou tarifs lui sont "
+            "encore rattachés. Supprimez-les d'abord.",
+        ) from None

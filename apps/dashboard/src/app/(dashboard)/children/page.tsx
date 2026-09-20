@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { api, type Institution } from "@/lib/api";
 import type { Child } from "@/lib/types";
 
@@ -27,6 +28,15 @@ export default function ChildrenPage() {
   function institutionName(id: string | null) {
     if (!id) return "—";
     return institutions.find((i) => i.id === id)?.name ?? "—";
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await api.deleteChild(id);
+      setChildren((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    }
   }
 
   return (
@@ -53,6 +63,7 @@ export default function ChildrenPage() {
               <th className="px-4 py-3 font-medium">Établissement</th>
               <th className="px-4 py-3 font-medium">Responsable</th>
               <th className="px-4 py-3 font-medium">Besoins spécifiques</th>
+              <th className="px-4 py-3 font-medium" />
             </tr>
           </thead>
           <tbody>
@@ -66,6 +77,12 @@ export default function ChildrenPage() {
                 <td className="px-4 py-3 text-muted">{institutionName(child.institution_id)}</td>
                 <td className="px-4 py-3 text-muted">{child.guardian_name}</td>
                 <td className="px-4 py-3 text-muted">{child.special_needs ?? "—"}</td>
+                <td className="px-4 py-3 text-right">
+                  <ConfirmDeleteButton
+                    label={`Supprimer ${child.first_name} ${child.last_name}`}
+                    onConfirm={() => handleDelete(child.id)}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
