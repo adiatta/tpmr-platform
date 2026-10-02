@@ -170,6 +170,8 @@ export const api = {
     first_name: string;
     last_name: string;
     home_address: string;
+    home_latitude?: number | null;
+    home_longitude?: number | null;
     institution_id?: string | null;
     guardian_name: string;
     guardian_phone: string;
@@ -181,6 +183,8 @@ export const api = {
       first_name: string;
       last_name: string;
       home_address: string;
+      home_latitude: number | null;
+      home_longitude: number | null;
       institution_id: string | null;
       guardian_name: string;
       guardian_phone: string;
@@ -199,7 +203,11 @@ export const api = {
     child_id: string;
     driver_id?: string | null;
     pickup_address: string;
+    pickup_latitude?: number | null;
+    pickup_longitude?: number | null;
     dropoff_address: string;
+    dropoff_latitude?: number | null;
+    dropoff_longitude?: number | null;
     scheduled_at: string;
     comment?: string | null;
   }) => request<Ride>("/rides", { method: "POST", body: JSON.stringify(data) }),
@@ -208,7 +216,11 @@ export const api = {
     data: Partial<{
       driver_id: string | null;
       pickup_address: string;
+      pickup_latitude: number | null;
+      pickup_longitude: number | null;
       dropoff_address: string;
+      dropoff_latitude: number | null;
+      dropoff_longitude: number | null;
       scheduled_at: string;
       comment: string | null;
     }>,

@@ -9,6 +9,8 @@ class ChildCreate(BaseModel):
     last_name: str
     date_of_birth: date | None = None
     home_address: str
+    home_latitude: float | None = None
+    home_longitude: float | None = None
     institution_id: uuid.UUID | None = None
     guardian_name: str
     guardian_phone: str
@@ -20,6 +22,8 @@ class ChildUpdate(BaseModel):
     last_name: str | None = None
     date_of_birth: date | None = None
     home_address: str | None = None
+    home_latitude: float | None = None
+    home_longitude: float | None = None
     institution_id: uuid.UUID | None = None
     guardian_name: str | None = None
     guardian_phone: str | None = None
@@ -32,6 +36,8 @@ class ChildOut(BaseModel):
     last_name: str
     date_of_birth: date | None = None
     home_address: str
+    home_latitude: float | None = None
+    home_longitude: float | None = None
     institution_id: uuid.UUID | None = None
     guardian_name: str
     guardian_phone: str

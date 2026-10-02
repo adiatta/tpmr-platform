@@ -7,11 +7,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F5C5C"
-    },
+    
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "fr.tpmr.chauffeur",
@@ -34,15 +30,24 @@
         "backgroundColor": "#0F5C5C"
       }
     },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "TPMR suit votre position pendant une course pour informer le dispatch."
-        }
-      ]
-    ],
+ "plugins": [
+  "expo-router",
+  [
+    "expo-splash-screen",
+    {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F5C5C"
+    }
+  ],
+  [
+    "expo-location",
+    {
+      "locationAlwaysAndWhenInUsePermission": "TPMR suit votre position pendant une course pour informer le dispatch."
+    }
+  ]
+],
+    
     "extra": {
       "apiUrl": "http://localhost:8000/api/v1",
       "router": {},

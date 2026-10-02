@@ -6,11 +6,11 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { api } from "@/lib/api";
 
 interface FormValues {
   name: string;
-  address: string;
   phone: string;
   opening_hours: string;
 }
@@ -20,6 +20,9 @@ export default function EditInstitutionPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [address, setAddress] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -30,14 +33,17 @@ export default function EditInstitutionPage() {
   useEffect(() => {
     api
       .getInstitution(params.id)
-      .then((inst) =>
+      .then((inst) => {
+        setAddress(inst.address);
+        if (inst.latitude != null && inst.longitude != null) {
+          setCoords({ lat: inst.latitude, lng: inst.longitude });
+        }
         reset({
           name: inst.name,
-          address: inst.address,
           phone: inst.phone ?? "",
           opening_hours: inst.opening_hours ?? "",
-        }),
-      )
+        });
+      })
       .catch((err) => setApiError(err instanceof Error ? err.message : "Erreur de chargement"))
       .finally(() => setLoading(false));
   }, [params.id, reset]);
@@ -47,7 +53,9 @@ export default function EditInstitutionPage() {
     try {
       await api.updateInstitution(params.id, {
         name: values.name,
-        address: values.address,
+        address,
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
         phone: values.phone || null,
         opening_hours: values.opening_hours || null,
       });
@@ -70,7 +78,13 @@ export default function EditInstitutionPage() {
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">Adresse</span>
-          <Input {...register("address")} />
+          <AddressAutocomplete
+            value={address}
+            onChange={(addr, c) => {
+              setAddress(addr);
+              if (c) setCoords(c);
+            }}
+          />
         </label>
 
         <div className="grid grid-cols-2 gap-4">

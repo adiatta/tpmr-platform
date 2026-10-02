@@ -55,6 +55,8 @@ export interface Child {
   first_name: string;
   last_name: string;
   home_address: string;
+  home_latitude: number | null;
+  home_longitude: number | null;
   institution_id: string | null;
   guardian_name: string;
   guardian_phone: string;

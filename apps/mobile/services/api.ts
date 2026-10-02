@@ -23,6 +23,18 @@ export interface MessageOut {
   created_at: string;
 }
 
+export type IncidentReason = "retard" | "probleme_vehicule" | "comportement_enfant" | "accident" | "autre";
+
+export interface IncidentOut {
+  id: string;
+  ride_id: string;
+  driver_id: string;
+  reason: IncidentReason;
+  description: string | null;
+  status: "nouveau" | "traite";
+  created_at: string;
+}
+
 export const api = {
   login: async (email: string, password: string) => {
     const { data } = await client.post<{ access_token: string; refresh_token: string }>(
@@ -32,8 +44,22 @@ export const api = {
     return data;
   },
 
+  // GET /auth/me renvoie le compte UTILISATEUR (users.id) — jamais utilisé
+  // pour peupler le profil chauffeur affiché dans l'app, uniquement pour
+  // des besoins d'affichage du compte lui-même si nécessaire un jour.
   me: async () => {
-    const { data } = await client.get<DriverProfile>("/auth/me");
+    const { data } = await client.get("/auth/me");
+    return data;
+  },
+
+  // GET /drivers/me renvoie le vrai profil CHAUFFEUR (drivers.id) — c'est
+  // CELUI-CI qu'il faut utiliser pour peupler le store après connexion,
+  // car c'est ce driver_id qui est attendu partout ailleurs (courses,
+  // messages, position GPS). Utiliser /auth/me à la place envoie l'ID du
+  // compte utilisateur, qui ne correspond à rien dans la table drivers et
+  // fait échouer silencieusement (ou en 500/404) tout le reste.
+  meDriver: async () => {
+    const { data } = await client.get<DriverProfile>("/drivers/me");
     return data;
   },
 
@@ -73,6 +99,18 @@ export const api = {
   },
   sendMessage: async (driverId: string, content: string) => {
     const { data } = await client.post<MessageOut>(`/messages/${driverId}`, { content });
+    return data;
+  },
+
+  // driver_id n'est volontairement pas envoyé ici : le backend le retrouve
+  // via la course (ride_id), pour ne pas faire confiance à un driver_id
+  // fourni par le client.
+  reportIncident: async (rideId: string, reason: IncidentReason, description?: string) => {
+    const { data } = await client.post<IncidentOut>("/incidents", {
+      ride_id: rideId,
+      reason,
+      description: description ?? null,
+    });
     return data;
   },
 };

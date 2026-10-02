@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Radio, Navigation } from "lucide-react";
+import { Radio } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDriverPositions } from "@/hooks/use-driver-positions";
 import { api } from "@/lib/api";
+import { DriversMap } from "@/components/map/drivers-map";
 import type { Driver } from "@/lib/types";
 
 export default function MapPage() {
   const { positions, connected } = useDriverPositions();
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
 
   useEffect(() => {
     api.listDrivers().then(setDrivers).catch(() => {});
@@ -19,9 +21,6 @@ export default function MapPage() {
     return drivers.find((d) => d.id === id)?.full_name ?? `Chauffeur ${id.slice(0, 8)}`;
   }
 
-  // Une position reçue il y a plus de 30s (pas de mise à jour depuis) est
-  // affichée comme "en pause" plutôt que "en ligne" — le partage GPS de
-  // l'app mobile envoie une position toutes les ~10s pendant une course.
   function isStale(updatedAt: number) {
     return Date.now() - updatedAt > 30000;
   }
@@ -36,15 +35,13 @@ export default function MapPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Emplacement de la carte réelle (Google Maps / Mapbox) — à intégrer
-            avec un provider de tuiles. Les coordonnées temps réel sont déjà
-            disponibles ici via useDriverPositions(), prêtes à alimenter des
-            marqueurs dès que la carte sera branchée. */}
-        <Card className="flex h-[480px] items-center justify-center lg:col-span-2">
-          <div className="text-center text-sm text-muted">
-            <Navigation className="mx-auto mb-2" size={24} />
-            Intégration carte (Google Maps / Mapbox) à brancher ici.
-          </div>
+        <Card className="lg:col-span-2 overflow-hidden p-0">
+          <DriversMap
+            positions={positions}
+            driverName={driverName}
+            isStale={isStale}
+            selectedDriverId={selectedDriverId}
+          />
         </Card>
 
         <Card>
@@ -55,12 +52,18 @@ export default function MapPage() {
             {positions.length === 0 && (
               <p className="text-sm text-muted">
                 Aucune position reçue pour le moment — un chauffeur doit être connecté
-                sur l'app mobile avec le partage de position activé (bascule "En ligne"
-                sur l'écran Accueil).
+                sur l&apos;app mobile avec le partage de position activé (bascule &quot;En ligne&quot;
+                sur l&apos;écran Accueil).
               </p>
             )}
             {positions.map((p) => (
-              <div key={p.driver_id} className="flex items-center justify-between rounded-lg border border-border p-3">
+              <button
+                key={p.driver_id}
+                onClick={() => setSelectedDriverId(p.driver_id)}
+                className={`flex items-center justify-between rounded-lg border p-3 text-left transition-colors ${
+                  selectedDriverId === p.driver_id ? "border-primary bg-primary/5" : "border-border"
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <Radio size={14} className={isStale(p.updated_at) ? "text-muted" : "text-success"} />
                   <div>
@@ -73,7 +76,7 @@ export default function MapPage() {
                 <span className="text-xs text-muted">
                   {isStale(p.updated_at) ? "En pause" : "À l'instant"}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </Card>

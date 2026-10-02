@@ -29,6 +29,19 @@
 
   --radius-card: 14px;
 }
+gmp-place-autocomplete {
+  --gmpx-color-surface: var(--color-surface, #ffffff);
+  --gmpx-color-on-surface: var(--color-foreground, #0f172a);
+  --gmpx-color-on-surface-variant: var(--color-muted, #64748b);
+  --gmpx-color-primary: var(--color-primary, #2563eb);
+  --gmpx-font-family-base: inherit;
+  --gmpx-font-size-base: 0.875rem;
+
+  color-scheme: light; /* empêche le navigateur d'appliquer son rendu
+                           natif "input" sombre en mode dark OS */
+  display: block;
+  width: 100%;
+}
 
 body {
   background-color: var(--color-background);

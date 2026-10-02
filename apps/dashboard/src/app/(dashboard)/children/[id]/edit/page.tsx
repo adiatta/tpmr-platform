@@ -2,24 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { api, type Institution } from "@/lib/api";
 
-const schema = z.object({
-  first_name: z.string().min(1, "Prénom requis"),
-  last_name: z.string().min(1, "Nom requis"),
-  home_address: z.string().min(4, "Adresse requise"),
-  institution_id: z.string().optional(),
-  guardian_name: z.string().min(2, "Nom du responsable requis"),
-  guardian_phone: z.string().min(6, "Téléphone requis"),
-  special_needs: z.string().optional(),
-});
-type FormValues = z.infer<typeof schema>;
+interface FormValues {
+  first_name: string;
+  last_name: string;
+  institution_id: string;
+  guardian_name: string;
+  guardian_phone: string;
+  special_needs: string;
+}
 
 export default function EditChildPage() {
   const params = useParams<{ id: string }>();
@@ -27,21 +24,27 @@ export default function EditChildPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [homeAddress, setHomeAddress] = useState("");
+  const [homeCoords, setHomeCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>();
 
   useEffect(() => {
     Promise.all([api.getChild(params.id), api.listInstitutions()])
       .then(([child, institutionsData]) => {
         setInstitutions(institutionsData);
+        setHomeAddress(child.home_address);
+        if (child.home_latitude != null && child.home_longitude != null) {
+          setHomeCoords({ lat: child.home_latitude, lng: child.home_longitude });
+        }
         reset({
           first_name: child.first_name,
           last_name: child.last_name,
-          home_address: child.home_address,
           institution_id: child.institution_id ?? "",
           guardian_name: child.guardian_name,
           guardian_phone: child.guardian_phone,
@@ -56,8 +59,14 @@ export default function EditChildPage() {
     setApiError(null);
     try {
       await api.updateChild(params.id, {
-        ...values,
+        first_name: values.first_name,
+        last_name: values.last_name,
+        home_address: homeAddress,
+        home_latitude: homeCoords?.lat ?? null,
+        home_longitude: homeCoords?.lng ?? null,
         institution_id: values.institution_id || null,
+        guardian_name: values.guardian_name,
+        guardian_phone: values.guardian_phone,
         special_needs: values.special_needs || null,
       });
       router.push("/children");
@@ -66,9 +75,7 @@ export default function EditChildPage() {
     }
   }
 
-  if (loading) {
-    return <p className="text-sm text-muted">Chargement...</p>;
-  }
+  if (loading) return <p className="text-sm text-muted">Chargement...</p>;
 
   return (
     <Card className="max-w-xl">
@@ -87,7 +94,13 @@ export default function EditChildPage() {
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">Adresse du domicile</span>
-          <Input {...register("home_address")} />
+          <AddressAutocomplete
+            value={homeAddress}
+            onChange={(address, coords) => {
+              setHomeAddress(address);
+              if (coords) setHomeCoords(coords);
+            }}
+          />
         </label>
 
         <label className="block">

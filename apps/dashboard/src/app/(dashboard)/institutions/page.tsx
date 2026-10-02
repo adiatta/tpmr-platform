@@ -6,8 +6,10 @@ import { Plus, MapPin, Phone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { api, type Institution } from "@/lib/api";
+import { isValidFrenchPhone } from "@/lib/phone";
 
 export default function InstitutionsPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
@@ -15,7 +17,13 @@ export default function InstitutionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ name: "", address: "", phone: "", opening_hours: "" });
+
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [openingHours, setOpeningHours] = useState("");
 
   useEffect(() => {
     api
@@ -25,20 +33,38 @@ export default function InstitutionsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  function resetForm() {
+    setName("");
+    setAddress("");
+    setCoords(null);
+    setPhone("");
+    setPhoneError(null);
+    setOpeningHours("");
+  }
+
   async function addInstitution() {
-    if (!form.name.trim() || !form.address.trim()) return;
+    if (!name.trim() || !address.trim()) return;
+
+    // Téléphone optionnel pour un établissement, mais s'il est renseigné
+    // il doit être un numéro français valide.
+    if (phone.trim() && !isValidFrenchPhone(phone)) {
+      setPhoneError("Numéro invalide (ex. 01 23 45 67 89)");
+      return;
+    }
+    setPhoneError(null);
+
     setSubmitting(true);
     try {
       const created = await api.createInstitution({
-        name: form.name,
-        address: form.address,
-        phone: form.phone || null,
-        opening_hours: form.opening_hours || null,
-        latitude: null,
-        longitude: null,
+        name,
+        address,
+        phone: phone || null,
+        opening_hours: openingHours || null,
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
       });
       setInstitutions((prev) => [...prev, created]);
-      setForm({ name: "", address: "", phone: "", opening_hours: "" });
+      resetForm();
       setShowForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la création");
@@ -73,14 +99,43 @@ export default function InstitutionsPage() {
       {showForm && (
         <Card className="max-w-xl">
           <div className="flex flex-col gap-3">
-            <Input placeholder="Nom" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <Input placeholder="Adresse" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <Input placeholder="Nom" value={name} onChange={(e) => setName(e.target.value)} />
+            <AddressAutocomplete
+              value={address}
+              onChange={(addr, c) => {
+                setAddress(addr);
+                if (c) setCoords(c);
+              }}
+              placeholder="Adresse"
+            />
             <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="Téléphone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              <Input placeholder="Horaires" value={form.opening_hours} onChange={(e) => setForm({ ...form, opening_hours: e.target.value })} />
+              <div>
+                <Input
+                  placeholder="Téléphone"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (phoneError) setPhoneError(null);
+                  }}
+                />
+                {phoneError && <span className="mt-1 block text-xs text-danger">{phoneError}</span>}
+              </div>
+              <Input
+                placeholder="Horaires"
+                value={openingHours}
+                onChange={(e) => setOpeningHours(e.target.value)}
+              />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setShowForm(false)}>Annuler</Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
+              >
+                Annuler
+              </Button>
               <Button onClick={addInstitution} disabled={submitting}>
                 {submitting ? "Enregistrement..." : "Enregistrer"}
               </Button>

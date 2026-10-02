@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,7 @@ from app.api.deps import get_current_user, require_admin
 from app.core.websocket_manager import publish_position
 from app.crud import driver as driver_crud
 from app.db.session import get_db
+from app.models.driver import Driver
 from app.models.user import User
 from app.schemas.driver import DriverCreate, DriverOut, DriverPositionUpdate, DriverUpdate
 
@@ -31,6 +33,29 @@ def list_drivers(
     skip: int = 0, limit: int = 100, db: Session = Depends(get_db), _: User = Depends(get_current_user)
 ) -> list[DriverOut]:
     return driver_crud.list_drivers(db, skip, limit)
+
+
+@router.get("/me", response_model=DriverOut)
+def get_my_driver_profile(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+) -> DriverOut:
+    """Renvoie le profil CHAUFFEUR (table drivers, avec son propre id) du
+    compte actuellement connecté — distinct de GET /auth/me qui renvoie le
+    compte UTILISATEUR (table users). L'app mobile doit appeler CET
+    endpoint après connexion, pas /auth/me, pour obtenir le driver_id
+    correct à utiliser partout ailleurs (courses, messages, position GPS).
+
+    IMPORTANT : cette route doit être déclarée AVANT /{driver_id} dans ce
+    fichier, sinon FastAPI essaiera de parser "me" comme un UUID et
+    renverra une erreur 422 au lieu d'atteindre cette fonction.
+    """
+    driver = db.execute(select(Driver).where(Driver.user_id == current_user.id)).scalars().first()
+    if not driver:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aucun profil chauffeur associé à ce compte (compte admin ?)",
+        )
+    return driver
 
 
 @router.get("/{driver_id}", response_model=DriverOut)

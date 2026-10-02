@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,11 +19,56 @@ from app.services.push_notifications import send_push_notification
 router = APIRouter(prefix="/rides", tags=["rides"])
 
 
+def _to_ride_out(ride) -> RideOut:
+    """Convertit un Ride ORM en RideOut, en ajoutant guardian_phone depuis
+    la relation ride.child — ce champ n'existe pas sur la table "rides",
+    `RideOut.model_validate(ride)` seul ne le remplit donc pas.
+
+    HYPOTHÈSE : le modèle Ride expose une relation `child` (comme
+    `ride.child.first_name` déjà utilisé dans incidents.py). Si ta relation
+    porte un autre nom, remplace `ride.child` ci-dessous en conséquence."""
+    out = RideOut.model_validate(ride)
+    child = getattr(ride, "child", None)
+    if child is not None:
+        out.guardian_phone = getattr(child, "guardian_phone", None)
+    return out
+
+
+async def _notify_driver_assigned(ride) -> None:
+    """Notifie le chauffeur (WebSocket + push) qu'une course lui est
+    assignée. Appelé à la création ET à la mise à jour d'une course, dans
+    les deux cas seulement si un chauffeur est effectivement assigné.
+
+    Le WebSocket est ce qui fait apparaître la course en direct dans l'app
+    (RealtimeSync invalide la requête "rides" chez tous les clients
+    connectés dès qu'une notification passe) ; le push Expo est le filet de
+    sécurité si l'app est fermée ou en arrière-plan."""
+    if not ride.driver_id:
+        return
+
+    await publish_notification(
+        user_id=str(ride.driver_id),
+        title="Nouvelle course assignée",
+        body=f"Départ prévu à {ride.scheduled_at.strftime('%H:%M')}",
+    )
+
+    if ride.driver and ride.driver.push_token:
+        asyncio.create_task(
+            send_push_notification(
+                ride.driver.push_token,
+                "Nouvelle course assignée",
+                f"Départ prévu à {ride.scheduled_at.strftime('%H:%M')}",
+            )
+        )
+
+
 @router.post("", response_model=RideOut, status_code=status.HTTP_201_CREATED)
-def create_ride(
+async def create_ride(
     payload: RideCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)
 ) -> RideOut:
-    return ride_crud.create_ride(db, payload)
+    ride = ride_crud.create_ride(db, payload)
+    await _notify_driver_assigned(ride)
+    return _to_ride_out(ride)
 
 
 @router.get("", response_model=list[RideOut])
@@ -34,7 +80,8 @@ def list_rides(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[RideOut]:
-    return ride_crud.list_rides(db, skip, limit, status_filter, driver_id)
+    rides = ride_crud.list_rides(db, skip, limit, status_filter, driver_id)
+    return [_to_ride_out(r) for r in rides]
 
 
 @router.get("/{ride_id}", response_model=RideOut)
@@ -44,11 +91,11 @@ def get_ride(
     ride = ride_crud.get_ride(db, ride_id)
     if not ride:
         raise HTTPException(status_code=404, detail="Course introuvable")
-    return ride
+    return _to_ride_out(ride)
 
 
 @router.patch("/{ride_id}", response_model=RideOut)
-def update_ride(
+async def update_ride(
     ride_id: uuid.UUID,
     payload: RideUpdate,
     db: Session = Depends(get_db),
@@ -59,17 +106,14 @@ def update_ride(
         raise HTTPException(status_code=404, detail="Course introuvable")
     updated = ride_crud.update_ride(db, ride, payload)
 
-    if payload.driver_id and updated.driver and updated.driver.push_token:
-        import asyncio
+    # Notifie uniquement si CETTE requête assigne/réassigne un chauffeur —
+    # pas à chaque modification (heure, adresse...) sans changement de
+    # chauffeur, pour éviter une notification "nouvelle course" à chaque
+    # correction mineure.
+    if payload.driver_id:
+        await _notify_driver_assigned(updated)
 
-        asyncio.create_task(
-            send_push_notification(
-                updated.driver.push_token,
-                "Nouvelle course assignée",
-                f"Départ prévu à {updated.scheduled_at.strftime('%H:%M')}",
-            )
-        )
-    return updated
+    return _to_ride_out(updated)
 
 
 @router.post("/{ride_id}/status", response_model=RideOut)
@@ -92,7 +136,7 @@ async def change_status(
         title="Mise à jour de course",
         body=f"Course {updated.id} → {RIDE_STATUS_LABELS_FR[updated.status]}",
     )
-    return updated
+    return _to_ride_out(updated)
 
 
 @router.get("/{ride_id}/eta")

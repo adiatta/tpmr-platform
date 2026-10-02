@@ -2,34 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { api, type Institution } from "@/lib/api";
+import { validateFrenchPhoneRHF } from "@/lib/phone";
 
-const schema = z.object({
-  first_name: z.string().min(1, "Prénom requis"),
-  last_name: z.string().min(1, "Nom requis"),
-  home_address: z.string().min(4, "Adresse requise"),
-  institution_id: z.string().optional(),
-  guardian_name: z.string().min(2, "Nom du responsable requis"),
-  guardian_phone: z.string().min(6, "Téléphone requis"),
-  special_needs: z.string().optional(),
-});
-type FormValues = z.infer<typeof schema>;
+interface FormValues {
+  first_name: string;
+  last_name: string;
+  institution_id: string;
+  guardian_name: string;
+  guardian_phone: string;
+  special_needs: string;
+}
 
 export default function NewChildPage() {
   const router = useRouter();
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [homeAddress, setHomeAddress] = useState("");
+  const [homeCoords, setHomeCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>();
 
   useEffect(() => {
     api.listInstitutions().then(setInstitutions).catch(() => {});
@@ -37,10 +39,21 @@ export default function NewChildPage() {
 
   async function onSubmit(values: FormValues) {
     setApiError(null);
+    setAddressError(null);
+    if (!homeAddress.trim()) {
+      setAddressError("Adresse du domicile requise.");
+      return;
+    }
     try {
       await api.createChild({
-        ...values,
+        first_name: values.first_name,
+        last_name: values.last_name,
+        home_address: homeAddress,
+        home_latitude: homeCoords?.lat ?? null,
+        home_longitude: homeCoords?.lng ?? null,
         institution_id: values.institution_id || null,
+        guardian_name: values.guardian_name,
+        guardian_phone: values.guardian_phone,
         special_needs: values.special_needs || null,
       });
       router.push("/children");
@@ -55,16 +68,25 @@ export default function NewChildPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-4">
           <Field label="Prénom" error={errors.first_name?.message}>
-            <Input {...register("first_name")} placeholder="Léo" />
+            <Input {...register("first_name", { required: "Prénom requis" })} placeholder="Léo" />
           </Field>
           <Field label="Nom" error={errors.last_name?.message}>
-            <Input {...register("last_name")} placeholder="Martin" />
+            <Input {...register("last_name", { required: "Nom requis" })} placeholder="Martin" />
           </Field>
         </div>
 
-        <Field label="Adresse du domicile" error={errors.home_address?.message}>
-          <Input {...register("home_address")} placeholder="12 rue des Lilas, 75020 Paris" />
-        </Field>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">Adresse du domicile</span>
+          <AddressAutocomplete
+            value={homeAddress}
+            onChange={(address, coords) => {
+              setHomeAddress(address);
+              if (coords) setHomeCoords(coords);
+            }}
+            placeholder="12 rue des Lilas, 75020 Paris"
+          />
+          {addressError && <span className="mt-1 block text-xs text-danger">{addressError}</span>}
+        </label>
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">Établissement</span>
@@ -83,10 +105,16 @@ export default function NewChildPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Nom du responsable" error={errors.guardian_name?.message}>
-            <Input {...register("guardian_name")} placeholder="Mme Martin" />
+            <Input {...register("guardian_name", { required: "Nom du responsable requis" })} placeholder="Mme Martin" />
           </Field>
           <Field label="Téléphone du responsable" error={errors.guardian_phone?.message}>
-            <Input {...register("guardian_phone")} placeholder="06 12 34 56 78" />
+            <Input
+              {...register("guardian_phone", {
+                required: "Téléphone requis",
+                validate: validateFrenchPhoneRHF,
+              })}
+              placeholder="06 12 34 56 78"
+            />
           </Field>
         </div>
 

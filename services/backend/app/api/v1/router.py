@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+from app.api.v1 import incidents
+
 
 from app.api.v1 import (
     auth,
@@ -24,3 +26,4 @@ api_router.include_router(pricing.router)
 api_router.include_router(messages.router)
 api_router.include_router(billing.router)
 api_router.include_router(websocket.router)
+api_router.include_router(incidents.router)

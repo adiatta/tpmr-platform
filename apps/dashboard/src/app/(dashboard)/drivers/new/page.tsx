@@ -9,12 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { isValidFrenchPhone } from "@/lib/phone";
 
 const driverSchema = z.object({
   full_name: z.string().min(2, "Nom requis"),
   email: z.string().email("Email invalide"),
   password: z.string().min(8, "8 caractères minimum"),
-  phone: z.string().min(6, "Téléphone requis"),
+  phone: z.string().refine(isValidFrenchPhone, "Numéro invalide (ex. 06 12 34 56 78)"),
   vehicle_plate: z.string().optional(),
   vehicle_model: z.string().optional(),
 });
@@ -72,9 +73,7 @@ export default function NewDriverPage() {
           </Field>
         </div>
 
-        {apiError && (
-          <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{apiError}</p>
-        )}
+        {apiError && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{apiError}</p>}
 
         <div className="mt-2 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => router.back()}>

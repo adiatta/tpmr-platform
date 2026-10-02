@@ -7,13 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { RideStatusBadge } from "@/components/ui/ride-status-badge";
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete";
 import { api } from "@/lib/api";
 import type { Child, Driver, Ride } from "@/lib/types";
 
 interface FormValues {
   driver_id: string;
-  pickup_address: string;
-  dropoff_address: string;
   scheduled_at: string;
   comment: string;
 }
@@ -32,6 +31,12 @@ export default function EditRidePage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const [pickupAddress, setPickupAddress] = useState("");
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [dropoffAddress, setDropoffAddress] = useState("");
+  const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -45,10 +50,16 @@ export default function EditRidePage() {
         setRide(rideData);
         setChildren(childrenData);
         setDrivers(driversData);
+        setPickupAddress(rideData.pickup_address);
+        setDropoffAddress(rideData.dropoff_address);
+        if (rideData.pickup_latitude != null && rideData.pickup_longitude != null) {
+          setPickupCoords({ lat: rideData.pickup_latitude, lng: rideData.pickup_longitude });
+        }
+        if (rideData.dropoff_latitude != null && rideData.dropoff_longitude != null) {
+          setDropoffCoords({ lat: rideData.dropoff_latitude, lng: rideData.dropoff_longitude });
+        }
         reset({
           driver_id: rideData.driver_id ?? "",
-          pickup_address: rideData.pickup_address,
-          dropoff_address: rideData.dropoff_address,
           scheduled_at: toLocalInputValue(rideData.scheduled_at),
           comment: rideData.comment ?? "",
         });
@@ -67,8 +78,12 @@ export default function EditRidePage() {
     try {
       await api.updateRide(params.id, {
         driver_id: values.driver_id || null,
-        pickup_address: values.pickup_address,
-        dropoff_address: values.dropoff_address,
+        pickup_address: pickupAddress,
+        pickup_latitude: pickupCoords?.lat ?? null,
+        pickup_longitude: pickupCoords?.lng ?? null,
+        dropoff_address: dropoffAddress,
+        dropoff_latitude: dropoffCoords?.lat ?? null,
+        dropoff_longitude: dropoffCoords?.lng ?? null,
         scheduled_at: new Date(values.scheduled_at).toISOString(),
         comment: values.comment || null,
       });
@@ -111,12 +126,24 @@ export default function EditRidePage() {
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">Adresse de départ</span>
-          <Input {...register("pickup_address")} />
+          <AddressAutocomplete
+            value={pickupAddress}
+            onChange={(address, coords) => {
+              setPickupAddress(address);
+              if (coords) setPickupCoords(coords);
+            }}
+          />
         </label>
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">Adresse d'arrivée</span>
-          <Input {...register("dropoff_address")} />
+          <AddressAutocomplete
+            value={dropoffAddress}
+            onChange={(address, coords) => {
+              setDropoffAddress(address);
+              if (coords) setDropoffCoords(coords);
+            }}
+          />
         </label>
 
         <label className="block">

@@ -4,14 +4,8 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
-from app.db.base import Base  # importe aussi tous les modèles
-
-from app.models.user import User
-from app.models.driver import Driver, DriverCategory
-from app.models.institution import Institution
-from app.models.child import Child
-from app.models.ride import Ride
-from app.models.pricing import Pricing
+from app.db.base import Base
+import app.models  # noqa: F401 — enregistre tous les modèles dans Base.metadata
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
